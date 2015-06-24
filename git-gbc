@@ -1,0 +1,74 @@
+#!/bin/bash
+
+# The MIT License (MIT)
+
+# Copyright (c) 2015 Robert Basic <robertbasic.com@gmail.com>
+
+# Permission is hereby granted, free of charge, to any person obtaining a copy
+# of this software and associated documentation files (the "Software"), to deal
+# in the Software without restriction, including without limitation the rights
+# to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+# copies of the Software, and to permit persons to whom the Software is
+# furnished to do so, subject to the following conditions:
+
+# The above copyright notice and this permission notice shall be included in
+# all copies or substantial portions of the Software.
+
+# THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+# IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+# FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+# AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+# LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+# OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+# THE SOFTWARE.
+
+# Install: put on $PATH, make executable, git will pick it up
+# Usage: git gbc <pattern>
+
+((!$#)) && echo "[gbc] Grep pattern not provided!" && exit 1
+
+function trim() {
+    local trimmed
+    trimmed=$(echo -e "$1" | tr -d '^[[:space:]]*')
+    echo "$trimmed"
+}
+
+count=$(git branch | grep -c "$1")
+if [ "$count" -gt 0 ] ; then
+    if [ "$count" -eq 1 ] ; then
+        branch=$(git branch | grep "$1")
+        branch=$(trim "$branch")
+        echo "[gbc] 1 branch found, checking it out"
+        git checkout "$branch"
+    else
+        echo "[gbc] $count branches found"
+        echo "[gbc] Please pick one by entering the number of the branch"
+        i=1
+        while read -r branch ; do
+            branch=$(trim "$branch" | grep "$1")
+            if [ "$branch" ] ; then
+                echo "[gbc] $i) $branch"
+                i=$((i+1))
+            fi
+        done < <(git branch)
+        read branch_number
+
+        re='^[0-9]+$'
+        if ! [[ "$branch_number" =~ $re ]] ; then
+            echo "[gbc] Invalid branch number, exiting ..."
+            exit 1
+        fi
+
+        if ! [[ "$branch_number" -lt $i ]] ; then
+            echo "[gbc] Invalid branch number, exiting ..."
+            exit 1
+        fi
+
+        selected_branch=$(git branch | grep -m"$branch_number" "$1" | tail -n1)
+        selected_branch=$(trim "$selected_branch")
+        echo "[gbc] $branch_number selected, checking it out"
+        git checkout "$selected_branch"
+    fi
+else
+    echo "[gbc] No branches found"
+fi
